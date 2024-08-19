@@ -29,7 +29,7 @@ minikube version
 ```
 For more details https://k8s-docs.netlify.app/en/docs/tasks/tools/install-minikube/
 
-#### Install kubectl
+## Install kubectl
 
 add Kubernetes repository for Ubuntu 20.04 to all the servers.
 ```

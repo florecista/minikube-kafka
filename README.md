@@ -55,3 +55,23 @@ kubeadm version: &version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.2", GitC
 For more detail use the following:
 ```
 kubectl version --client --output=yaml
+```
+## It will be handy to port-forward
+### Get the name of the broker
+```
+kubectl get pods -n kafka
+```
+And insert that name into the following:
+```
+kubectl port-forward <pod_name> 9092 -n kafka
+```
+## Useful kubectl commands
+
+Check kubernetes pods, services, volumes health:
+
+ - `kubectl cluster-info` - get Kubernetes cluster info
+ - `kubectl get nodes` - get list of nodes
+ - `kubectl get services -n kafka` - a list of all services
+ - `kubectl describe pod $pod_name` - describe a specific pod
+ - `kubectl logs $pod_name` - get logs for a specific pod
+ - `kubectl exec -it $pod_name -- bash` - enters container and run a bash shell in a specific pod

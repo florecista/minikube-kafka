@@ -94,7 +94,8 @@ root@kafka-broker:/#
 ```
 Then some SysAdmin black magic to find the file:
 ```
-find . -iname 'kafka-topics.sh'
+root@kafka-broker:/# find . -iname 'kafka-topics.sh'
+./opt/kafka_2.13-2.8.1/bin/kafka-topics.sh
 ```
 Now as an example we have:
 ```

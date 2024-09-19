@@ -8,7 +8,7 @@ sudo apt install docker.io
 sudo systemctl enable docker
 sudo systemctl start docker
 sudo groupadd docker
-sudo usermod -aG docker $USER && newgrp docker
+sudo usermod -aG docker $USER
 sudo chmod 666 /var/run/docker.sock
 sudo systemctl restart docker
 ```

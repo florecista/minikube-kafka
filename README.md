@@ -89,7 +89,8 @@ kubectl get services -n kafka
 ```
 In order to get the path-to-kafka-bin we can first go to the console of Minikube using the kafka pod name:
 ```
-kubectl exec --tty -i kafka-broker-5dfd5bd87c-48rrf --namespace kafka -- bash
+$ kubectl exec --tty -i kafka-broker-5dfd5bd87c-48rrf --namespace kafka -- bash
+root@kafka-broker:/#
 ```
 Then some SysAdmin black magic to find the file:
 ```

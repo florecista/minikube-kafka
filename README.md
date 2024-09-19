@@ -1,4 +1,4 @@
- # Docker installation in ubuntu 24.04
+ # Setting up Minikube and Apache Kafka on Ubuntu 24.04
    
  ## Docker installation
 ```

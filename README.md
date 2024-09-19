@@ -65,6 +65,41 @@ And insert that name into the following:
 ```
 kubectl port-forward <pod_name> 9092 -n kafka
 ```
+## Creating and Listing Topics
+
+To test adding Topics we can run the following command:
+```
+echo "hello world!" | kcat -P -b localhost:9092 -t test
+```
+To check this Topic was added we can check with kafkacat:
+```
+kcat -C -b localhost:9092 -t test
+```
+### Alternatively we can list Topics using /bin/kafka-topics.sh --list
+but there are some steps involved.
+
+The command we want to execute needs 3 pieces of information and looks like this:
+```
+kubectl -n kafka exec <kafka-pod-name> -- <path-to-kafka-bin-dir>/kafka-topics.sh --zookeeper <zookeeper-service-name>:2181 --list
+```
+We need to list pods and services to get 2 out of the 3:
+```
+kubectl get pods -n kafka
+kubectl get services -n kafka
+```
+In order to get the path-to-kafka-bin we can first go to the console of Minikube using the kafka pod name:
+```
+kubectl exec --tty -i kafka-broker-5dfd5bd87c-48rrf --namespace kafka -- bash
+```
+Then some SysAdmin black magic to find the file:
+```
+find . -iname 'kafka-topics.sh'
+```
+Now as an example we have:
+```
+kubectl -n kafka exec kafka-broker-5dfd5bd87c-48rrf -- /opt/kafka_2.13-2.8.1/bin/kafka-topics.sh --zookeeper zookeeper-service:2181 --list
+```
+
 ## Useful kubectl commands
 
 Check kubernetes pods, services, volumes health:

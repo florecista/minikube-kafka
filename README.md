@@ -65,6 +65,37 @@ And insert that name into the following:
 ```
 kubectl port-forward <pod_name> 9092 -n kafka
 ```
+## Adding a namespace
+```
+kubectl create namespace kafka
+```
+Edit a YAML file to apply
+```
+vi 00-namespace.yaml
+```
+enter the following:
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka
+```
+Now:
+```
+kubectl apply -f 05-namespace.yaml
+```
+and check the result:
+```
+kubectl get namespaces
+```
+## Deploy Zookeeper
+```
+kubectl apply -f 06-zookeeper.yaml
+```
+## Deploy Kafka
+```
+kubectl apply -f 07-kafka.yaml
+```
 ## Creating and Listing Topics
 
 To test adding Topics we can run the following command:

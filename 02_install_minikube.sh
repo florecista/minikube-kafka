@@ -1,11 +1,29 @@
-# It's good practice to update system packages
-sudo apt update
+#!/usr/bin/env bash
 
-# In case these are not installed previously let's make sure
-sudo apt install -y curl wget apt-transport-https
+set -euo pipefail
 
-# Download latest version of Minikube for Linux AMD64
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+case "$(uname -m)" in
+  x86_64)
+    architecture="amd64"
+    ;;
+  aarch64|arm64)
+    architecture="arm64"
+    ;;
+  *)
+    echo "Unsupported CPU architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
 
-# Install Minikube
-sudo install minikube-linux-amd64 /usr/local/bin/minikube
+temporary_directory="$(mktemp -d)"
+trap 'rm -rf "$temporary_directory"' EXIT
+
+curl -fL \
+  "https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-${architecture}" \
+  -o "$temporary_directory/minikube"
+
+sudo install -o root -g root -m 0755 \
+  "$temporary_directory/minikube" \
+  /usr/local/bin/minikube
+
+minikube version

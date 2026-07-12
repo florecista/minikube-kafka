@@ -1,145 +1,152 @@
- # Setting up Minikube and Apache Kafka on Ubuntu 24.04
-   
- ## Docker installation
-```
-sudo apt update
-sudo apt install apt-transport-https curl
-sudo apt install docker.io
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo groupadd docker
-sudo usermod -aG docker $USER
-sudo chmod 666 /var/run/docker.sock
-sudo systemctl restart docker
-```
-For more details refer  https://docs.docker.com/install/linux/docker-ce/ubuntu/#install-docker-ce-1 
+# Setting up Minikube and Apache Kafka on Ubuntu Linux
 
-## Minikube installation
+Run a single Apache Kafka broker locally in Kubernetes for development and
+script testing without using an AWS account.
 
-Make sure docker installed in master and nodes, make sure master has 2 cpu's 
-Execute below commands in both master and node
-```
-sudo apt-get update && sudo apt-get install -y apt-transport-https curl
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-sudo install minikube-linux-amd64 /usr/local/bin/minikube
- ```
-Confirm installation with
-```
-minikube version
-```
-For more details https://k8s-docs.netlify.app/en/docs/tasks/tools/install-minikube/
+The supported host environment is Ubuntu Linux. The included setup scripts
+install the host prerequisites, allowing a new Linux instance to be prepared
+quickly. The Kubernetes manifests themselves remain portable and can also be
+used from Windows for development.
 
-## Install kubectl
+## Architecture
 
-add Kubernetes repository for Ubuntu 20.04 to all the servers.
+- Minikube provides a single-node Kubernetes cluster.
+- Kafka 4.3.1 runs in KRaft combined broker/controller mode.
+- ZooKeeper is not required.
+- Kafka data is ephemeral and is discarded when the pod or cluster is removed.
+- An in-cluster Job provides a repeatable producer/consumer smoke test, so kcat
+  is optional.
+
+This environment is intended only for local development. It does not configure
+authentication, encryption, replication, durable storage, or other production
+features.
+
+## Prepare an Ubuntu host
+
+The installation scripts support Ubuntu on x86-64 and ARM64. Run them as a
+normal user with sudo access, from the repository directory. Install Docker
+first:
+
+```shell
+bash 01_install_docker.sh
 ```
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+The Docker installer uses Docker's official apt repository, starts the service,
+adds the current user to the `docker` group, and runs Docker's `hello-world`
+test. Log out and back in after running it so the new group membership takes
+effect. Return to the repository directory, then install Minikube and kubectl:
+
+```shell
+bash 02_install_minikube.sh
+bash 03_install_kubectl.sh
 ```
-Then Checksum
+
+kcat is not required for the automated smoke test. Install it when host-based
+producer or consumer testing is useful:
+
+```shell
+bash 04_install_kcat.sh
 ```
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
-echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+
+The scripts follow the upstream installation processes for
+[Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/),
+[Minikube](https://minikube.sigs.k8s.io/docs/start/), and
+[kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/).
+
+### Windows development
+
+Windows is not the primary bootstrap target. For development, install Docker
+Desktop, kubectl, and Minikube separately, then continue from **Start
+Minikube** below. The Kafka deployment and smoke test commands are identical.
+
+## Start Minikube
+
+Start Minikube with the Docker driver:
+
+```shell
+minikube start --driver=docker --cpus=2 --memory=4096
+kubectl get nodes
 ```
-Now install kubectl
-```
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-```
-Now confirm installation
-```
-kubectl version --client
-```
-```
-Client Version: version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.2", GitCommit:"8b5a19147530eaac9476b0ab82980b4088bbc1b2", GitTreeState:"clean", BuildDate:"2021-09-15T21:38:50Z", GoVersion:"go1.16.8", Compiler:"gc", Platform:"linux/amd64"}
-kubeadm version: &version.Info{Major:"1", Minor:"22", GitVersion:"v1.22.2", GitCommit:"8b5a19147530eaac9476b0ab82980b4088bbc1b2", GitTreeState:"clean", BuildDate:"2021-09-15T21:37:34Z", GoVersion:"go1.16.8", Compiler:"gc", Platform:"linux/amd64"}
-```
-For more detail use the following:
-```
-kubectl version --client --output=yaml
-```
-## It will be handy to port-forward
-### Get the name of the broker
-```
-kubectl get pods -n kafka
-```
-And insert that name into the following:
-```
-kubectl port-forward <pod_name> 9092 -n kafka
-```
-## Adding a namespace
-```
-kubectl create namespace kafka
-```
-Edit a YAML file to apply
-```
-vi 00-namespace.yaml
-```
-enter the following:
-```
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: kafka
-```
-Now:
-```
-kubectl apply -f 05-namespace.yaml
-```
-and check the result:
-```
-kubectl get namespaces
-```
-## Deploy Zookeeper
-```
-kubectl apply -f 06-zookeeper.yaml
-```
+
+The node should report `Ready` before continuing.
+
 ## Deploy Kafka
-```
-kubectl apply -f 07-kafka.yaml
-```
-## Creating and Listing Topics
 
-To test adding Topics we can run the following command:
-```
-echo "hello world!" | kcat -P -b localhost:9092 -t test
-```
-To check this Topic was added we can check with kafkacat:
-```
-kcat -C -b localhost:9092 -t test
-```
-### Alternatively we can list Topics using /bin/kafka-topics.sh --list
-but there are some steps involved.
-
-The command we want to execute needs 3 pieces of information and looks like this:
-```
-kubectl -n kafka exec <kafka-pod-name> -- <path-to-kafka-bin-dir>/kafka-topics.sh --zookeeper <zookeeper-service-name>:2181 --list
-```
-We need to list pods and services to get 2 out of the 3:
-```
-kubectl get pods -n kafka
-kubectl get services -n kafka
-```
-In order to get the path-to-kafka-bin we can first go to the console of Minikube using the kafka pod name:
-```
-$ kubectl exec --tty -i kafka-broker-5dfd5bd87c-48rrf --namespace kafka -- bash
-root@kafka-broker:/#
-```
-Then some SysAdmin black magic to find the file:
-```
-root@kafka-broker:/# find . -iname 'kafka-topics.sh'
-./opt/kafka_2.13-2.8.1/bin/kafka-topics.sh
-```
-Now as an example we have:
-```
-kubectl -n kafka exec kafka-broker-5dfd5bd87c-48rrf -- /opt/kafka_2.13-2.8.1/bin/kafka-topics.sh --zookeeper zookeeper-service:2181 --list
+```shell
+kubectl apply -f 05-namespace.yaml
+kubectl apply -f 06-kafka.yaml
+kubectl rollout status deployment/kafka -n kafka --timeout=5m
+kubectl get pods,services -n kafka
 ```
 
-## Useful kubectl commands
+The initial deployment may take a few minutes while Minikube downloads the
+Kafka image.
 
-Check kubernetes pods, services, volumes health:
+## Run the smoke test
 
- - `kubectl cluster-info` - get Kubernetes cluster info
- - `kubectl get nodes` - get list of nodes
- - `kubectl get services -n kafka` - a list of all services
- - `kubectl describe pod $pod_name` - describe a specific pod
- - `kubectl logs $pod_name` - get logs for a specific pod
- - `kubectl exec -it $pod_name -- bash` - enters container and run a bash shell in a specific pod
+The Job creates a uniquely named topic, produces one message, consumes it, and
+fails if the received value is not identical.
+
+Delete any previous Job before running the test again:
+
+```shell
+kubectl delete job kafka-smoke-test -n kafka --ignore-not-found
+kubectl apply -f 07-smoke-test.yaml
+kubectl wait --for=condition=complete job/kafka-smoke-test -n kafka --timeout=2m
+kubectl logs job/kafka-smoke-test -n kafka
+```
+
+Successful output ends with:
+
+```text
+Smoke test passed: hello from minikube kafka
+```
+
+## Connect from the host
+
+Keep this command running in a separate terminal:
+
+```shell
+kubectl port-forward service/kafka 9094:9094 -n kafka
+```
+
+Host-based Kafka clients can then use `localhost:9094` as their bootstrap
+server. For example, if kcat is installed:
+
+```shell
+echo "hello world" | kcat -P -b localhost:9094 -t test
+kcat -C -o beginning -e -c 1 -b localhost:9094 -t test
+```
+
+Clients running inside Kubernetes should use `kafka:9092` instead.
+
+## Useful commands
+
+```shell
+kubectl get all -n kafka
+kubectl logs deployment/kafka -n kafka
+kubectl describe deployment/kafka -n kafka
+kubectl exec -it deployment/kafka -n kafka -- /bin/bash
+```
+
+## Cleanup
+
+Remove Kafka while keeping Minikube:
+
+```shell
+kubectl delete namespace kafka
+```
+
+Remove the entire local cluster and all its data:
+
+```shell
+minikube delete
+```
+
+## AWS compatibility
+
+This setup reproduces the Kafka protocol and common topic, producer, consumer,
+and administration operations. It does not reproduce AWS MSK networking, IAM
+authentication, TLS certificates, broker sizing, or multi-broker behaviour.
+Pin the local Kafka version to the version used by the target MSK cluster when
+version-specific behaviour matters.

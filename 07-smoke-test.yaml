@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-smoke-test
+  namespace: kafka
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: kafka-smoke-test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: kafka-smoke-test
+          image: apache/kafka:4.3.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              topic="smoke-test-$(date +%s)"
+              message="hello from minikube kafka"
+
+              /opt/kafka/bin/kafka-topics.sh \
+                --bootstrap-server kafka:9092 \
+                --create \
+                --topic "$topic" \
+                --partitions 1 \
+                --replication-factor 1
+
+              printf '%s\n' "$message" | \
+                /opt/kafka/bin/kafka-console-producer.sh \
+                  --bootstrap-server kafka:9092 \
+                  --topic "$topic"
+
+              received="$(/opt/kafka/bin/kafka-console-consumer.sh \
+                --bootstrap-server kafka:9092 \
+                --topic "$topic" \
+                --from-beginning \
+                --max-messages 1 \
+                --timeout-ms 30000)"
+
+              test "$received" = "$message"
+              echo "Smoke test passed: $received"
